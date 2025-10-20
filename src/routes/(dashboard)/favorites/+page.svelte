@@ -1,75 +1,75 @@
 <script lang="ts">
 	import Heart from '@lucide/svelte/icons/heart';
 
-	interface PromptCard {
+	interface FavoriteCard {
 		id: number;
-		isFavorited: boolean;
+		title: string;
+		category: string;
+		description: string;
 	}
 
-	let cards: PromptCard[] = $state(
-		Array.from({ length: 4 }, (_, i) => ({
-			id: i,
-			isFavorited: false
-		}))
-	);
-
-	function toggleFavorite(id: number) {
-		const card = cards.find((c) => c.id === id);
-		if (card) {
-			card.isFavorited = !card.isFavorited;
+	const favorites: FavoriteCard[] = [
+		{
+			id: 1,
+			title: 'Email Marketing Copy',
+			category: 'Marketing',
+			description: 'Generate compelling email subject lines and body copy for marketing campaigns.'
+		},
+		{
+			id: 2,
+			title: 'React Component Generator',
+			category: 'Code',
+			description: 'Create boilerplate React components with hooks and TypeScript support.'
+		},
+		{
+			id: 3,
+			title: 'Creative Story Starter',
+			category: 'Creative',
+			description: 'Generate unique story openings and plot ideas for creative writing projects.'
+		},
+		{
+			id: 4,
+			title: 'Business Plan Outline',
+			category: 'Business',
+			description: 'Create structured business plan outlines with key sections and metrics.'
+		},
+		{
+			id: 5,
+			title: 'Technical Documentation',
+			category: 'Writing',
+			description: 'Generate clear and concise technical documentation for software projects.'
 		}
-	}
+	];
 </script>
 
 <div class="space-y-6 p-6">
 	<div>
-		<h2 class="text-2xl font-bold">My Prompts</h2>
-		<p class="text-sm text-muted-foreground">Manage and organize your AI prompts</p>
+		<h2 class="text-2xl font-bold">Favorites</h2>
+		<p class="text-sm text-muted-foreground">Your saved favorite prompts</p>
 	</div>
 
-	<!-- Category tabs -->
-	<div class="flex gap-2 overflow-x-auto pb-2">
-		{#each ['All', 'Marketing', 'Code', 'Creative', 'Writing', 'Business'] as category}
-			<button
-				class="rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors"
-				class:bg-primary={category === 'All'}
-				class:text-primary-foreground={category === 'All'}
-				class:bg-secondary={category !== 'All'}
-				class:text-secondary-foreground={category !== 'All'}
-			>
-				{category}
-			</button>
-		{/each}
-	</div>
-
-	<!-- Prompts grid -->
+	<!-- Favorites grid -->
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-		{#each cards as card (card.id)}
+		{#each favorites as card (card.id)}
 			<div
 				class="relative rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
 			>
-				<!-- Favorite heart button -->
+				<!-- Favorite heart button (always filled on favorites page) -->
 				<button
-					onclick={() => toggleFavorite(card.id)}
 					class="absolute top-3 right-3 rounded-full p-1.5 transition-colors hover:bg-secondary"
-					title={card.isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+					title="Remove from favorites"
 				>
-					{#if card.isFavorited}
-						<Heart class="h-5 w-5 fill-red-500 text-red-500 transition-colors" />
-					{:else}
-						<Heart class="h-5 w-5 text-muted-foreground transition-colors" />
-					{/if}
+					<Heart class="h-5 w-5 fill-red-500 text-red-500" />
 				</button>
 
 				<div
 					class="mb-3 inline-block rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
 				>
-					{['Marketing', 'Code', 'Creative', 'Writing'][card.id]}
+					{card.category}
 				</div>
-				<h3 class="mb-2 font-semibold">Prompt Title {card.id + 1}</h3>
+				<h3 class="mb-2 font-semibold">{card.title}</h3>
 				<p class="mb-4 text-sm text-muted-foreground">
-					This is a sample prompt description that shows what your prompts will look like in the
-					grid view.
+					{card.description}
 				</p>
 				<div class="flex gap-2">
 					<button class="rounded p-2 hover:bg-secondary" title="Copy prompt">
@@ -99,3 +99,4 @@
 		{/each}
 	</div>
 </div>
+

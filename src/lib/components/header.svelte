@@ -2,6 +2,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { UserButton } from 'svelte-clerk';
+	import { goto } from '$app/navigation';
 
 	interface Props {
 		title?: string;
@@ -10,6 +11,14 @@
 	}
 
 	const { title = 'Dashboard', showAddButton = true, onAddClick }: Props = $props();
+
+	function handleAddClick() {
+		if (onAddClick) {
+			onAddClick();
+		} else {
+			goto('/new');
+		}
+	}
 </script>
 
 <header
@@ -25,7 +34,7 @@
 			{#if showAddButton}
 				<button
 					class="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-					onclick={onAddClick}
+					onclick={handleAddClick}
 				>
 					<Plus class="h-4 w-4" />
 					<span class="hidden sm:inline">Add New Prompt</span>

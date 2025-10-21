@@ -1,12 +1,15 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
-// Query: Get all prompts for the current user, ordered by creation date (newest first)
+// Query: Get all prompts for the current user with optional category filter and pagination
 export const getUserPrompts = query({
 	args: {
-		clerkUserId: v.string()
+		clerkUserId: v.string(),
+		category: v.optional(v.string()),
+		limit: v.optional(v.number()),
+		cursor: v.optional(v.union(v.string(), v.null()))
 	},
-	handler: async (ctx, { clerkUserId }) => {
+	handler: async (ctx, { clerkUserId, category, limit = 12, cursor }) => {
 		// Look up the user by their Clerk ID
 		const user = await ctx.db
 			.query('users')
@@ -14,17 +17,50 @@ export const getUserPrompts = query({
 			.unique();
 
 		if (!user) {
-			return [];
+			return { prompts: [], hasMore: false, nextCursor: null };
 		}
 
-		// Get all prompts for this user, ordered by creation date (newest first)
-		const prompts = await ctx.db
-			.query('prompts')
-			.withIndex('by_userId_createdAt', (q) => q.eq('userId', user._id))
-			.order('desc')
-			.collect();
+		// Build query based on whether we're filtering by category
+		let baseQuery;
+		if (category && category !== 'all') {
+			// Filter by category
+			baseQuery = ctx.db
+				.query('prompts')
+				.withIndex('by_userId_category', (q) => q.eq('userId', user._id).eq('category', category));
+		} else {
+			// Get all prompts for this user
+			baseQuery = ctx.db
+				.query('prompts')
+				.withIndex('by_userId_createdAt', (q) => q.eq('userId', user._id));
+		}
 
-		return prompts;
+		// Order by creation date (newest first)
+		const query = baseQuery.order('desc');
+
+		// Fetch all prompts and handle pagination in memory
+		// This is simpler and works with all index combinations
+		const allPrompts = await query.collect();
+
+		// Find the starting index based on cursor
+		let startIndex = 0;
+		if (cursor && typeof cursor === 'string') {
+			const cursorId = cursor;
+			startIndex = allPrompts.findIndex((p) => p._id.toString() === cursorId) + 1;
+			if (startIndex === 0) startIndex = 0; // Cursor not found, start from beginning
+		}
+
+		// Get the page of results
+		const paginatedPrompts = allPrompts.slice(startIndex, startIndex + limit);
+		const hasMore = startIndex + limit < allPrompts.length;
+		const nextCursor = hasMore
+			? paginatedPrompts[paginatedPrompts.length - 1]?._id.toString()
+			: null;
+
+		return {
+			prompts: paginatedPrompts,
+			hasMore,
+			nextCursor
+		};
 	}
 });
 

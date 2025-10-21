@@ -27,12 +27,55 @@
 	// Get the current user's Clerk ID
 	const clerkUserId = $derived(clerkContext.auth.userId);
 
-	// Query to fetch user's prompts - only when user is signed in
+	// Category state
+	let selectedCategory = $state('All');
+
+	// Pagination state
+	let allPrompts: Prompt[] = $state([]);
+	let nextCursor: string | null = $state(null);
+	let hasMore = $state(false);
+	let isLoadingMore = $state(false);
+
+	// Query to fetch user's prompts with category filter - only when user is signed in
 	const promptsQuery = $derived(
-		clerkUserId ? useQuery(api.prompts.getUserPrompts, { clerkUserId }) : null
+		clerkUserId
+			? useQuery(api.prompts.getUserPrompts, {
+					clerkUserId,
+					category: selectedCategory.toLocaleLowerCase(),
+					limit: 12,
+					...(nextCursor ? { cursor: nextCursor } : {})
+				})
+			: null
 	);
-	const prompts = $derived(promptsQuery?.data as Prompt[] | undefined);
+
+	const queryData = $derived(promptsQuery?.data as any);
 	const isLoading = $derived(promptsQuery?.isLoading ?? false);
+
+	// Update allPrompts when category changes or initial data loads
+	$effect(() => {
+		if (selectedCategory) {
+			// Reset pagination when category changes
+			allPrompts = [];
+			nextCursor = null;
+			hasMore = false;
+		}
+	});
+
+	// Update allPrompts when query data changes
+	$effect(() => {
+		if (queryData?.prompts) {
+			if (nextCursor) {
+				// Append to existing prompts (pagination)
+				allPrompts = [...allPrompts, ...queryData.prompts];
+			} else {
+				// Replace with new prompts (initial load or category change)
+				allPrompts = queryData.prompts;
+			}
+			hasMore = queryData.hasMore ?? false;
+			nextCursor = queryData.nextCursor ?? null;
+			isLoadingMore = false;
+		}
+	});
 
 	let showDeleteConfirm = $state(false);
 	let promptToDelete: string | null = $state(null);
@@ -108,11 +151,12 @@
 	<div class="flex gap-2 overflow-x-auto pb-2">
 		{#each ['All', 'Marketing', 'Code', 'Creative', 'Writing', 'Business'] as category}
 			<button
-				class="rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors"
-				class:bg-primary={category === 'All'}
-				class:text-primary-foreground={category === 'All'}
-				class:bg-secondary={category !== 'All'}
-				class:text-secondary-foreground={category !== 'All'}
+				onclick={() => (selectedCategory = category)}
+				class={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+					selectedCategory === category
+						? 'bg-primary text-primary-foreground'
+						: 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+				}`}
 			>
 				{category}
 			</button>
@@ -149,7 +193,7 @@
 				</div>
 			{/each}
 		</div>
-	{:else if !prompts || prompts.length === 0}
+	{:else if !allPrompts || allPrompts.length === 0}
 		<!-- Empty state -->
 		<div
 			class="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/50 py-12"
@@ -168,7 +212,7 @@
 	{:else}
 		<!-- Prompts grid -->
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-			{#each prompts as prompt (prompt._id)}
+			{#each allPrompts as prompt (prompt._id)}
 				<div
 					class="relative rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
 				>
@@ -237,6 +281,21 @@
 				</div>
 			{/each}
 		</div>
+
+		<!-- Load More button -->
+		{#if hasMore && !isLoading}
+			<div class="flex justify-center pt-6">
+				<button
+					onclick={() => {
+						isLoadingMore = true;
+					}}
+					disabled={isLoadingMore}
+					class="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+				>
+					{isLoadingMore ? 'Loading...' : 'Load More'}
+				</button>
+			</div>
+		{/if}
 	{/if}
 
 	<!-- Delete confirmation dialog -->

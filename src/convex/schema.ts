@@ -24,7 +24,8 @@ export default defineSchema({
 	})
 		.index('by_userId', ['userId'])
 		.index('by_userId_createdAt', ['userId', 'createdAt'])
-		.index('by_userId_isFavorited', ['userId', 'isFavorited']),
+		.index('by_userId_isFavorited', ['userId', 'isFavorited'])
+		.index('by_userId_category', ['userId', 'category']),
 
 	// User settings table - stores user-specific settings like API keys
 	userSettings: defineTable({

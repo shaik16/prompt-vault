@@ -3,12 +3,43 @@
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Check from '@lucide/svelte/icons/check';
+	import { useConvexClient } from 'convex-svelte';
+	import { useClerkContext } from 'svelte-clerk';
+	import { api } from '../../../convex/_generated/api.js';
+	import { toast } from 'svelte-sonner';
+
+	const client = useConvexClient();
+	const clerkContext = useClerkContext();
 
 	let apiKey = $state('');
 	let isEditing = $state(false);
 	let showKey = $state(false);
 	let isSaved = $state(false);
 	let copyFeedback = $state(false);
+	let isSaving = $state(false);
+	let isLoading = $state(true);
+
+	// Load the API key on mount
+	$effect(() => {
+		const clerkUserId = clerkContext.auth.userId;
+		if (clerkUserId) {
+			loadApiKey(clerkUserId);
+		}
+	});
+
+	async function loadApiKey(clerkUserId: string) {
+		try {
+			isLoading = true;
+			const key = await client.query(api.users.getOpenAIKey, { clerkUserId });
+			if (key) {
+				apiKey = key;
+			}
+		} catch (error) {
+			console.error('Error loading API key:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	function toggleEdit() {
 		isEditing = !isEditing;
@@ -21,16 +52,41 @@
 		showKey = !showKey;
 	}
 
-	function handleSave() {
-		// Save the API key (client-side only for now)
-		isSaved = true;
-		isEditing = false;
-		showKey = false;
+	async function handleSave() {
+		const clerkUserId = clerkContext.auth.userId;
+		if (!clerkUserId) {
+			toast.error('You must be signed in to save API key');
+			return;
+		}
 
-		// Reset the saved feedback after 2 seconds
-		setTimeout(() => {
-			isSaved = false;
-		}, 2000);
+		if (!apiKey.trim()) {
+			toast.error('API key cannot be empty');
+			return;
+		}
+
+		try {
+			isSaving = true;
+			await client.mutation(api.users.saveOpenAIKey, {
+				clerkUserId,
+				openaiApiKey: apiKey
+			});
+
+			toast.success('API key saved successfully!');
+			isSaved = true;
+			isEditing = false;
+			showKey = false;
+
+			// Reset the saved feedback after 2 seconds
+			setTimeout(() => {
+				isSaved = false;
+			}, 2000);
+		} catch (error) {
+			console.error('Error saving API key:', error);
+			const message = error instanceof Error ? error.message : 'Failed to save API key';
+			toast.error(message);
+		} finally {
+			isSaving = false;
+		}
 	}
 
 	function copyToClipboard() {
@@ -62,7 +118,12 @@
 	<div class="rounded-lg border border-border bg-card p-6">
 		<h3 class="mb-4 text-lg font-semibold">OpenAI API Key</h3>
 
-		{#if !isEditing && apiKey}
+		{#if isLoading}
+			<!-- Loading State -->
+			<div class="space-y-4">
+				<p class="text-sm text-muted-foreground">Loading API key...</p>
+			</div>
+		{:else if !isEditing && apiKey}
 			<!-- Display Mode -->
 			<div class="space-y-4">
 				<div class="flex items-center gap-3 rounded-md bg-secondary/50 p-3">
@@ -115,21 +176,23 @@
 						type={showKey ? 'text' : 'password'}
 						bind:value={apiKey}
 						placeholder="sk-..."
-						class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+						disabled={isSaving}
+						class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
 					/>
 				</div>
 
 				<div class="flex gap-2">
 					<button
 						onclick={handleSave}
-						disabled={!apiKey}
+						disabled={!apiKey || isSaving}
 						class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						Save
+						{isSaving ? 'Saving...' : 'Save'}
 					</button>
 					<button
 						onclick={toggleEdit}
-						class="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
+						disabled={isSaving}
+						class="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary disabled:opacity-50"
 					>
 						Cancel
 					</button>

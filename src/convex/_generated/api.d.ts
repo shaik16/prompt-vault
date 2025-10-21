@@ -9,6 +9,7 @@
  */
 
 import type * as http from "../http.js";
+import type * as openai from "../openai.js";
 import type * as prompts from "../prompts.js";
 import type * as users from "../users.js";
 
@@ -28,6 +29,7 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   http: typeof http;
+  openai: typeof openai;
   prompts: typeof prompts;
   users: typeof users;
 }>;

@@ -13,6 +13,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Loader from '@lucide/svelte/icons/loader';
+	import AIPromptAssistant from '$lib/components/AIPromptAssistant.svelte';
 
 	const client = useConvexClient();
 	const clerkContext = useClerkContext();
@@ -54,6 +55,9 @@
 	let errors: Partial<PromptForm> = $state({});
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
+
+	// Magic button state
+	let isGenerating = $state(false);
 
 	// Update form when prompt data is loaded
 	$effect(() => {
@@ -129,6 +133,74 @@
 	function handleCancel() {
 		goto('/');
 	}
+
+	async function improvePrompt() {
+		if (!form.promptText.trim()) {
+			toast.error('Please enter a prompt to improve');
+			return;
+		}
+
+		if (!clerkUserId) {
+			toast.error('You must be signed in');
+			return;
+		}
+
+		try {
+			isGenerating = true;
+
+			const result = await client.action((api as any).openai.generatePrompt, {
+				clerkUserId,
+				mode: 'improve',
+				category: form.category || 'other',
+				existingText: form.promptText
+			});
+
+			if (result.success) {
+				form.promptText = result.text;
+				toast.success('Prompt improved successfully!');
+			}
+		} catch (error) {
+			console.error('Error improving prompt:', error);
+			const message = error instanceof Error ? error.message : 'Failed to improve prompt';
+			toast.error(message);
+		} finally {
+			isGenerating = false;
+		}
+	}
+
+	async function generateFromIdea(idea: string) {
+		if (!idea.trim()) {
+			toast.error('Please enter an idea');
+			return;
+		}
+
+		if (!clerkUserId) {
+			toast.error('You must be signed in');
+			return;
+		}
+
+		try {
+			isGenerating = true;
+
+			const result = await client.action((api as any).openai.generatePrompt, {
+				clerkUserId,
+				mode: 'generate',
+				category: form.category || 'other',
+				ideaText: idea
+			});
+
+			if (result.success) {
+				form.promptText = result.text;
+				toast.success('Prompt generated successfully!');
+			}
+		} catch (error) {
+			console.error('Error generating prompt:', error);
+			const message = error instanceof Error ? error.message : 'Failed to generate prompt';
+			toast.error(message);
+		} finally {
+			isGenerating = false;
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-background">
@@ -195,75 +267,91 @@
 						</div>
 					</div>
 
-					<!-- Prompt text textarea -->
+					<!-- Prompt text textarea with magic button -->
 					<div class="space-y-2">
 						<label for="promptText" class="text-sm font-medium">Prompt Text</label>
-						<Textarea
-							id="promptText"
-							placeholder="Enter your prompt text here..."
-							bind:value={form.promptText}
-							maxlength={5000}
-							rows={8}
-						/>
-						<div class="flex justify-between">
-							{#if errors.promptText}
-								<p class="text-xs text-destructive">{errors.promptText}</p>
-							{:else}
-								<p class="text-xs text-muted-foreground"></p>
-							{/if}
-							<p class="text-xs text-muted-foreground">{form.promptText.length}/5000</p>
+
+						<!-- Textarea with magic button positioned inside -->
+						<div class="relative">
+							<Textarea
+								id="promptText"
+								placeholder="Enter your prompt text here..."
+								bind:value={form.promptText}
+								maxlength={5000}
+								rows={8}
+								disabled={isSubmitting || isGenerating}
+								class="pr-12"
+							/>
+							<!-- Magic button positioned absolutely inside textarea -->
+							<div class="absolute right-2 bottom-2">
+								<AIPromptAssistant
+									bind:promptText={form.promptText}
+									{isGenerating}
+									isDisabled={isSubmitting}
+									onImprove={improvePrompt}
+									onGenerateFromIdea={generateFromIdea}
+								/>
+							</div>
+							<div class="flex justify-between">
+								{#if errors.promptText}
+									<p class="text-xs text-destructive">{errors.promptText}</p>
+								{:else}
+									<p class="text-xs text-muted-foreground"></p>
+								{/if}
+								<p class="text-xs text-muted-foreground">{form.promptText.length}/5000</p>
+							</div>
 						</div>
-					</div>
 
-					<!-- Category select -->
-					<div class="space-y-2">
-						<label for="category" class="text-sm font-medium">Category</label>
-						<Select.Root
-							type="single"
-							value={form.category}
-							onValueChange={(value: string | undefined) => {
-								form.category = value || '';
-							}}
-						>
-							<Select.Trigger id="category">
-								<span
-									>{form.category
-										? categories.find((c) => c.value === form.category)?.label
-										: 'Select a category'}</span
-								>
-							</Select.Trigger>
-							<Select.Content>
-								{#each categories as category (category.value)}
-									<Select.Item value={category.value} label={category.label}>
-										{category.label}
-									</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-						{#if errors.category}
-							<p class="text-xs text-destructive">{errors.category}</p>
-						{/if}
-					</div>
-
-					<!-- Buttons -->
-					<div class="flex gap-3 pt-4">
-						<Button type="submit" disabled={isSubmitting} class="flex-1">
-							{#if isSubmitting}
-								<Loader class="mr-2 h-4 w-4 animate-spin" />
-								Updating...
-							{:else}
-								Update Prompt
+						<!-- Category select -->
+						<div class="space-y-2">
+							<label for="category" class="text-sm font-medium">Category</label>
+							<Select.Root
+								type="single"
+								value={form.category}
+								onValueChange={(value: string | undefined) => {
+									form.category = value || '';
+								}}
+							>
+								<Select.Trigger id="category">
+									<span
+										>{form.category
+											? categories.find((c) => c.value === form.category)?.label
+											: 'Select a category'}</span
+									>
+								</Select.Trigger>
+								<Select.Content>
+									{#each categories as category (category.value)}
+										<Select.Item value={category.value} label={category.label}>
+											{category.label}
+										</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+							{#if errors.category}
+								<p class="text-xs text-destructive">{errors.category}</p>
 							{/if}
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							onclick={handleCancel}
-							disabled={isSubmitting}
-							class="flex-1"
-						>
-							Cancel
-						</Button>
+						</div>
+
+						<!-- Buttons -->
+						<div class="flex gap-3 pt-4">
+							<Button type="submit" disabled={isSubmitting} class="flex-1">
+								{#if isSubmitting}
+									<Loader class="mr-2 h-4 w-4 animate-spin" />
+									Updating...
+								{:else}
+									Update Prompt
+								{/if}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								onclick={handleCancel}
+								disabled={isSubmitting}
+								class="flex-1"
+							>
+								Cancel
+							</Button>
+						</div>
 					</div>
 				</form>
 			{:else}

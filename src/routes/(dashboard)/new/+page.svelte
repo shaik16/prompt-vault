@@ -11,6 +11,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Check from '@lucide/svelte/icons/check';
 	import Loader from '@lucide/svelte/icons/loader';
+	import AIPromptAssistant from '$lib/components/AIPromptAssistant.svelte';
 
 	const client = useConvexClient();
 	const clerkContext = useClerkContext();
@@ -39,6 +40,9 @@
 	let errors: Partial<PromptForm> = $state({});
 	let isSubmitting = $state(false);
 	let showSuccess = $state(false);
+
+	// Magic button state
+	let isGenerating = $state(false);
 
 	function validateForm(): boolean {
 		errors = {};
@@ -116,6 +120,76 @@
 	function handleCancel() {
 		goto('/');
 	}
+
+	async function improvePrompt() {
+		if (!form.promptText.trim()) {
+			toast.error('Please enter a prompt to improve');
+			return;
+		}
+
+		const clerkUserId = clerkContext.auth.userId;
+		if (!clerkUserId) {
+			toast.error('You must be signed in');
+			return;
+		}
+
+		try {
+			isGenerating = true;
+
+			const result = await client.action((api as any).openai.generatePrompt, {
+				clerkUserId,
+				mode: 'improve',
+				category: form.category || 'other',
+				existingText: form.promptText
+			});
+
+			if (result.success) {
+				form.promptText = result.text;
+				toast.success('Prompt improved successfully!');
+			}
+		} catch (error) {
+			console.error('Error improving prompt:', error);
+			const message = error instanceof Error ? error.message : 'Failed to improve prompt';
+			toast.error(message);
+		} finally {
+			isGenerating = false;
+		}
+	}
+
+	async function generateFromIdea(idea: string) {
+		if (!idea.trim()) {
+			toast.error('Please enter an idea');
+			return;
+		}
+
+		const clerkUserId = clerkContext.auth.userId;
+		if (!clerkUserId) {
+			toast.error('You must be signed in');
+			return;
+		}
+
+		try {
+			isGenerating = true;
+
+			const result = await client.action((api as any).openai.generatePrompt, {
+				clerkUserId,
+				mode: 'generate',
+				category: form.category || 'other',
+				ideaText: idea
+			});
+
+			if (result.success) {
+				form.promptText = result.text;
+				toast.success('Prompt generated successfully!');
+			}
+		} catch (error) {
+			console.error('Error generating prompt:', error);
+			const message = error instanceof Error ? error.message : 'Failed to generate prompt';
+			toast.error(message);
+		} finally {
+			isGenerating = false;
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-background">
@@ -180,16 +254,30 @@
 					</p>
 				</div>
 
-				<!-- Prompt Text field -->
+				<!-- Prompt Text field with Magic Button -->
 				<div class="space-y-2">
 					<label for="prompt-text" class="block text-sm font-medium">Prompt Text</label>
-					<Textarea
-						id="prompt-text"
-						placeholder="Enter your detailed AI prompt here..."
-						bind:value={form.promptText}
-						disabled={isSubmitting}
-						class={`min-h-[200px] resize-none ${errors.promptText ? 'border-destructive' : ''}`}
-					/>
+
+					<!-- Textarea with magic button positioned inside -->
+					<div class="relative">
+						<Textarea
+							id="prompt-text"
+							placeholder="Enter your detailed AI prompt here..."
+							bind:value={form.promptText}
+							disabled={isSubmitting || isGenerating}
+							class={`min-h-[200px] resize-none pr-12 ${errors.promptText ? 'border-destructive' : ''}`}
+						/>
+						<!-- Magic button positioned absolutely inside textarea -->
+						<div class="absolute right-2 bottom-2">
+							<AIPromptAssistant
+								bind:promptText={form.promptText}
+								{isGenerating}
+								isDisabled={isSubmitting}
+								onImprove={improvePrompt}
+								onGenerateFromIdea={generateFromIdea}
+							/>
+						</div>
+					</div>
 					{#if errors.promptText}
 						<p class="text-xs text-destructive">{errors.promptText}</p>
 					{/if}

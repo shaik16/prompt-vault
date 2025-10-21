@@ -5,6 +5,7 @@
 	import Home from '@lucide/svelte/icons/home';
 	import Bookmark from '@lucide/svelte/icons/bookmark';
 	import { page } from '$app/stores';
+	import Logo from '$lib/assets/logo.svg';
 
 	const menuItems = [
 		{
@@ -36,12 +37,7 @@
 <Sidebar.Root>
 	<Sidebar.Header>
 		<div class="flex items-center gap-2 px-2 py-4">
-			<div
-				class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-			>
-				<Bookmark class="h-4 w-4" />
-			</div>
-			<span class="text-lg font-bold">PromptVault</span>
+			<img src={Logo} alt="logo" width="150" />
 		</div>
 	</Sidebar.Header>
 

@@ -3,12 +3,14 @@
 	import { useConvexClient } from 'convex-svelte';
 	import { useClerkContext } from 'svelte-clerk';
 	import { api } from '../../../convex/_generated/api.js';
+	import { toast } from 'svelte-sonner';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Check from '@lucide/svelte/icons/check';
+	import Loader from '@lucide/svelte/icons/loader';
 
 	const client = useConvexClient();
 	const clerkContext = useClerkContext();
@@ -86,8 +88,8 @@
 				clerkUserId
 			});
 
-			// Show success message
-			showSuccess = true;
+			// Show success toast
+			toast.success('Prompt created successfully!');
 
 			// Reset form
 			form = {
@@ -102,8 +104,10 @@
 			}, 2000);
 		} catch (error) {
 			console.error('Error saving prompt:', error);
-			errorMessage =
-				error instanceof Error ? error.message : 'Failed to save prompt. Please try again.';
+			const message =
+				error instanceof Error ? error.message : 'Failed to create prompt. Please try again.';
+			errorMessage = message;
+			toast.error(message);
 		} finally {
 			isSubmitting = false;
 		}
@@ -228,7 +232,12 @@
 				<!-- Buttons -->
 				<div class="flex gap-3 pt-4">
 					<Button type="submit" disabled={isSubmitting} class="flex-1">
-						{isSubmitting ? 'Saving...' : 'Save Prompt'}
+						{#if isSubmitting}
+							<Loader class="mr-2 h-4 w-4 animate-spin" />
+							Saving...
+						{:else}
+							Save Prompt
+						{/if}
 					</Button>
 					<Button
 						type="button"

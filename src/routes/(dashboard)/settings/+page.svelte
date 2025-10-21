@@ -18,6 +18,8 @@
 	let copyFeedback = $state(false);
 	let isSaving = $state(false);
 	let isLoading = $state(true);
+	let isDeleting = $state(false);
+	let showDeleteConfirm = $state(false);
 
 	// Load the API key on mount
 	$effect(() => {
@@ -106,6 +108,38 @@
 		if (key.length <= 4) return '*'.repeat(key.length);
 		return key.substring(0, 2) + '*'.repeat(key.length - 4) + key.substring(key.length - 2);
 	}
+
+	async function handleDelete() {
+		const clerkUserId = clerkContext.auth.userId;
+		if (!clerkUserId) {
+			toast.error('You must be signed in to delete API key');
+			return;
+		}
+
+		try {
+			isDeleting = true;
+			await client.mutation(api.users.deleteOpenAIKey, { clerkUserId });
+
+			toast.success('API key deleted successfully');
+			apiKey = '';
+			showDeleteConfirm = false;
+			isEditing = false;
+		} catch (error) {
+			console.error('Error deleting API key:', error);
+			const message = error instanceof Error ? error.message : 'Failed to delete API key';
+			toast.error(message);
+		} finally {
+			isDeleting = false;
+		}
+	}
+
+	function confirmDelete() {
+		showDeleteConfirm = true;
+	}
+
+	function cancelDelete() {
+		showDeleteConfirm = false;
+	}
 </script>
 
 <div class="space-y-6 p-6">
@@ -164,6 +198,13 @@
 					>
 						Edit
 					</button>
+					<button
+						onclick={confirmDelete}
+						disabled={isDeleting}
+						class="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{isDeleting ? 'Deleting...' : 'Delete'}
+					</button>
 				</div>
 			</div>
 		{:else if isEditing}
@@ -217,13 +258,33 @@
 				✓ API key saved successfully
 			</div>
 		{/if}
-	</div>
 
-	<!-- Additional Settings Section -->
-	<div class="rounded-lg border border-border bg-card p-6">
-		<h3 class="mb-4 text-lg font-semibold">Account</h3>
-		<p class="text-sm text-muted-foreground">
-			Manage your account settings and preferences in your profile.
-		</p>
+		<!-- Delete Confirmation Dialog -->
+		{#if showDeleteConfirm}
+			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+				<div class="rounded-lg border border-border bg-card p-6 shadow-lg">
+					<h3 class="mb-2 text-lg font-semibold">Delete API Key?</h3>
+					<p class="mb-6 text-sm text-muted-foreground">
+						This action cannot be undone. You will need to add a new API key to use AI features.
+					</p>
+					<div class="flex gap-2">
+						<button
+							onclick={cancelDelete}
+							disabled={isDeleting}
+							class="flex-1 rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary disabled:opacity-50"
+						>
+							Cancel
+						</button>
+						<button
+							onclick={handleDelete}
+							disabled={isDeleting}
+							class="text-destructive-foreground flex-1 rounded-md bg-destructive px-4 py-2 text-sm font-medium transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{isDeleting ? 'Deleting...' : 'Delete'}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>

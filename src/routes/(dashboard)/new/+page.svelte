@@ -43,6 +43,29 @@
 
 	// Magic button state
 	let isGenerating = $state(false);
+	let hasOpenAIKey = $state(false);
+	let isCheckingKey = $state(true);
+
+	// Check if user has OpenAI API key
+	$effect(() => {
+		const clerkUserId = clerkContext.auth.userId;
+		if (clerkUserId) {
+			checkOpenAIKey(clerkUserId);
+		}
+	});
+
+	async function checkOpenAIKey(clerkUserId: string) {
+		try {
+			isCheckingKey = true;
+			const hasKey = await client.query(api.users.hasOpenAIKey, { clerkUserId });
+			hasOpenAIKey = hasKey;
+		} catch (error) {
+			console.error('Error checking API key:', error);
+			hasOpenAIKey = false;
+		} finally {
+			isCheckingKey = false;
+		}
+	}
 
 	function validateForm(): boolean {
 		errors = {};
@@ -265,18 +288,20 @@
 							placeholder="Enter your detailed AI prompt here..."
 							bind:value={form.promptText}
 							disabled={isSubmitting || isGenerating}
-							class={`min-h-[200px] resize-none pr-12 ${errors.promptText ? 'border-destructive' : ''}`}
+							class={`min-h-[200px] resize-none ${hasOpenAIKey ? 'pr-12' : ''} ${errors.promptText ? 'border-destructive' : ''}`}
 						/>
-						<!-- Magic button positioned absolutely inside textarea -->
-						<div class="absolute right-2 bottom-2">
-							<AIPromptAssistant
-								bind:promptText={form.promptText}
-								{isGenerating}
-								isDisabled={isSubmitting}
-								onImprove={improvePrompt}
-								onGenerateFromIdea={generateFromIdea}
-							/>
-						</div>
+						<!-- Magic button positioned absolutely inside textarea (only shown if API key is set) -->
+						{#if hasOpenAIKey && !isCheckingKey}
+							<div class="absolute right-2 bottom-2">
+								<AIPromptAssistant
+									bind:promptText={form.promptText}
+									{isGenerating}
+									isDisabled={isSubmitting}
+									onImprove={improvePrompt}
+									onGenerateFromIdea={generateFromIdea}
+								/>
+							</div>
+						{/if}
 					</div>
 					{#if errors.promptText}
 						<p class="text-xs text-destructive">{errors.promptText}</p>

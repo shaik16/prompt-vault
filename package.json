@@ -48,6 +48,7 @@
 		"@tailwindcss/postcss": "^4.1.14",
 		"convex": "^1.28.0",
 		"convex-svelte": "^0.0.11",
-		"svelte-clerk": "^0.17.5"
+		"svelte-clerk": "^0.17.5",
+		"svix": "^1.77.0"
 	}
 }

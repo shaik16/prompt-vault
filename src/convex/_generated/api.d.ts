@@ -9,6 +9,7 @@
  */
 
 import type * as http from "../http.js";
+import type * as prompts from "../prompts.js";
 import type * as users from "../users.js";
 
 import type {
@@ -27,6 +28,7 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   http: typeof http;
+  prompts: typeof prompts;
   users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

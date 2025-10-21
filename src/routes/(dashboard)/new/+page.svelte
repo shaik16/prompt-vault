@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { useConvexClient } from 'convex-svelte';
+	import { useClerkContext } from 'svelte-clerk';
+	import { api } from '../../../convex/_generated/api.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Check from '@lucide/svelte/icons/check';
+
+	const client = useConvexClient();
+	const clerkContext = useClerkContext();
 
 	interface PromptForm {
 		title: string;
@@ -54,16 +60,31 @@
 		return Object.keys(errors).length === 0;
 	}
 
+	let errorMessage = $state('');
+
 	async function handleSubmit() {
 		if (!validateForm()) {
 			return;
 		}
 
+		// Get the current user's Clerk ID
+		const clerkUserId = clerkContext.auth.userId;
+		if (!clerkUserId) {
+			errorMessage = 'You must be signed in to create a prompt';
+			return;
+		}
+
 		isSubmitting = true;
+		errorMessage = '';
 
 		try {
-			// Simulate API call
-			await new Promise((resolve) => setTimeout(resolve, 1000));
+			// Call the Convex mutation to create the prompt
+			await client.mutation(api.prompts.create, {
+				title: form.title,
+				promptText: form.promptText,
+				category: form.category,
+				clerkUserId
+			});
 
 			// Show success message
 			showSuccess = true;
@@ -81,6 +102,8 @@
 			}, 2000);
 		} catch (error) {
 			console.error('Error saving prompt:', error);
+			errorMessage =
+				error instanceof Error ? error.message : 'Failed to save prompt. Please try again.';
 		} finally {
 			isSubmitting = false;
 		}
@@ -111,6 +134,13 @@
 	<!-- Form container -->
 	<div class="flex justify-center px-4 py-8 sm:px-6">
 		<div class="w-full max-w-2xl space-y-6">
+			<!-- Error message -->
+			{#if errorMessage}
+				<div class="flex items-center gap-3 rounded-lg bg-red-50 p-4 text-red-700">
+					<span>{errorMessage}</span>
+				</div>
+			{/if}
+
 			<!-- Success message -->
 			{#if showSuccess}
 				<div class="flex items-center gap-3 rounded-lg bg-green-50 p-4 text-green-700">

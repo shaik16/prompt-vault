@@ -6,8 +6,8 @@
 	import { api } from '../../convex/_generated/api.js';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { toast } from 'svelte-sonner';
-	import Heart from '@lucide/svelte/icons/heart';
-	import Pencil from '@lucide/svelte/icons/pencil';
+	import PromptCard from '$lib/components/PromptCard.svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 
 	interface Prompt {
 		_id: string;
@@ -213,72 +213,13 @@
 		<!-- Prompts grid -->
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{#each allPrompts as prompt (prompt._id)}
-				<div
-					class="relative rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
-				>
-					<!-- Favorite heart button -->
-					<button
-						onclick={() => handleToggleFavorite(prompt._id)}
-						class="absolute top-3 right-3 rounded-full p-1.5 transition-colors hover:bg-secondary"
-						title={prompt.isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-					>
-						{#if prompt.isFavorited}
-							<Heart class="h-5 w-5 fill-red-500 text-red-500 transition-colors" />
-						{:else}
-							<Heart class="h-5 w-5 text-muted-foreground transition-colors" />
-						{/if}
-					</button>
-
-					<div
-						class="mb-3 inline-block rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary capitalize"
-					>
-						{prompt.category}
-					</div>
-					<h3 class="mb-2 line-clamp-2 font-semibold">{prompt.title}</h3>
-					<p class="mb-4 line-clamp-3 text-sm text-muted-foreground">
-						{prompt.promptText}
-					</p>
-					<div class="flex gap-2">
-						<button
-							onclick={() => handleCopyPrompt(prompt.promptText)}
-							class="rounded p-2 hover:bg-secondary"
-							title="Copy prompt"
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-								/>
-							</svg>
-							<span class="sr-only">Copy prompt</span>
-						</button>
-						<button
-							onclick={() => goto(`/edit/${prompt._id}`)}
-							class="rounded p-2 hover:bg-secondary"
-							title="Edit prompt"
-						>
-							<Pencil class="h-4 w-4" />
-							<span class="sr-only">Edit prompt</span>
-						</button>
-						<button
-							onclick={() => openDeleteConfirm(prompt._id)}
-							class="rounded p-2 hover:bg-secondary"
-							title="Delete prompt"
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-								/>
-							</svg>
-							<span class="sr-only">Delete prompt</span>
-						</button>
-					</div>
-				</div>
+				<PromptCard
+					{prompt}
+					onToggleFavorite={handleToggleFavorite}
+					onCopy={handleCopyPrompt}
+					onEdit={(promptId) => goto(`/edit/${promptId}`)}
+					onDelete={openDeleteConfirm}
+				/>
 			{/each}
 		</div>
 
@@ -299,29 +240,25 @@
 	{/if}
 
 	<!-- Delete confirmation dialog -->
-	{#if showDeleteConfirm && promptToDelete}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-			<div class="rounded-lg bg-background p-6 shadow-lg">
-				<h3 class="mb-2 text-lg font-semibold">Delete Prompt?</h3>
-				<p class="mb-6 text-sm text-muted-foreground">
+	<AlertDialog.Root bind:open={showDeleteConfirm}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Delete Prompt?</AlertDialog.Title>
+				<AlertDialog.Description>
 					This action cannot be undone. Are you sure you want to delete this prompt?
-				</p>
-				<div class="flex gap-3">
-					<button
-						onclick={closeDeleteConfirm}
-						class="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
-					>
-						Cancel
-					</button>
-					<button
-						onclick={() => handleDeletePrompt(promptToDelete!)}
-						disabled={isDeleting}
-						class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-					>
-						{isDeleting ? 'Deleting...' : 'Delete'}
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel onclick={closeDeleteConfirm} disabled={isDeleting}>
+					Cancel
+				</AlertDialog.Cancel>
+				<AlertDialog.Action
+					onclick={() => handleDeletePrompt(promptToDelete!)}
+					disabled={isDeleting}
+				>
+					{isDeleting ? 'Deleting...' : 'Delete'}
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

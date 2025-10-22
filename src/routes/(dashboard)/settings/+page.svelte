@@ -7,6 +7,7 @@
 	import { useClerkContext } from 'svelte-clerk';
 	import { api } from '../../../convex/_generated/api.js';
 	import { toast } from 'svelte-sonner';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 
 	const client = useConvexClient();
 	const clerkContext = useClerkContext();
@@ -260,31 +261,23 @@
 		{/if}
 
 		<!-- Delete Confirmation Dialog -->
-		{#if showDeleteConfirm}
-			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-				<div class="rounded-lg border border-border bg-card p-6 shadow-lg">
-					<h3 class="mb-2 text-lg font-semibold">Delete API Key?</h3>
-					<p class="mb-6 text-sm text-muted-foreground">
+		<AlertDialog.Root bind:open={showDeleteConfirm}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Delete API Key?</AlertDialog.Title>
+					<AlertDialog.Description>
 						This action cannot be undone. You will need to add a new API key to use AI features.
-					</p>
-					<div class="flex gap-2">
-						<button
-							onclick={cancelDelete}
-							disabled={isDeleting}
-							class="flex-1 rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary disabled:opacity-50"
-						>
-							Cancel
-						</button>
-						<button
-							onclick={handleDelete}
-							disabled={isDeleting}
-							class="text-destructive-foreground flex-1 rounded-md bg-destructive px-4 py-2 text-sm font-medium transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							{isDeleting ? 'Deleting...' : 'Delete'}
-						</button>
-					</div>
-				</div>
-			</div>
-		{/if}
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel onclick={cancelDelete} disabled={isDeleting}>
+						Cancel
+					</AlertDialog.Cancel>
+					<AlertDialog.Action onclick={handleDelete} disabled={isDeleting}>
+						{isDeleting ? 'Deleting...' : 'Delete'}
+					</AlertDialog.Action>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
 	</div>
 </div>

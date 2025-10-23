@@ -20,7 +20,6 @@ export const getUserPrompts = query({
 			return { prompts: [], hasMore: false, nextCursor: null };
 		}
 
-		// Build query based on whether we're filtering by category
 		let baseQuery;
 		if (category && category !== 'all') {
 			// Filter by category

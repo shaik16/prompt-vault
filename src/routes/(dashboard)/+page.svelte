@@ -35,6 +35,7 @@
 	let nextCursor: string | null = $state(null);
 	let hasMore = $state(false);
 	let isLoadingMore = $state(false);
+	let previousCategory = $state('All');
 
 	// Query to fetch user's prompts with category filter - only when user is signed in
 	const promptsQuery = $derived(
@@ -50,14 +51,15 @@
 
 	const queryData = $derived(promptsQuery?.data as any);
 	const isLoading = $derived(promptsQuery?.isLoading ?? false);
+	const shouldShowSkeletons = $derived(isLoading && allPrompts.length === 0);
 
-	// Update allPrompts when category changes or initial data loads
+	// Reset pagination when category changes
 	$effect(() => {
-		if (selectedCategory) {
-			// Reset pagination when category changes
+		if (selectedCategory !== previousCategory) {
 			allPrompts = [];
 			nextCursor = null;
 			hasMore = false;
+			previousCategory = selectedCategory;
 		}
 	});
 
@@ -72,7 +74,6 @@
 				allPrompts = queryData.prompts;
 			}
 			hasMore = queryData.hasMore ?? false;
-			nextCursor = queryData.nextCursor ?? null;
 			isLoadingMore = false;
 		}
 	});
@@ -164,9 +165,9 @@
 	</div>
 
 	<!-- Loading state with skeleton loaders -->
-	{#if isLoading}
+	{#if shouldShowSkeletons}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-			{#each Array(6) as _}
+			{#each Array(8) as _}
 				<div class="rounded-lg border border-border bg-card p-4 shadow-sm">
 					<!-- Skeleton for favorite button -->
 					<div class="absolute top-3 right-3">
@@ -229,6 +230,10 @@
 				<button
 					onclick={() => {
 						isLoadingMore = true;
+						// Update nextCursor to trigger the query to fetch more prompts
+						if (queryData?.nextCursor) {
+							nextCursor = queryData.nextCursor;
+						}
 					}}
 					disabled={isLoadingMore}
 					class="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"

@@ -1,15 +1,15 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
-// Query: Get all prompts for the current user with optional category filter and pagination
+// Query: Get all prompts for the current user with optional category filter and page-based pagination
 export const getUserPrompts = query({
 	args: {
 		clerkUserId: v.string(),
 		category: v.optional(v.string()),
-		limit: v.optional(v.number()),
-		cursor: v.optional(v.union(v.string(), v.null()))
+		page: v.optional(v.number()),
+		limit: v.optional(v.number())
 	},
-	handler: async (ctx, { clerkUserId, category, limit = 12, cursor }) => {
+	handler: async (ctx, { clerkUserId, category, page = 1, limit = 12 }) => {
 		// Look up the user by their Clerk ID
 		const user = await ctx.db
 			.query('users')
@@ -17,7 +17,7 @@ export const getUserPrompts = query({
 			.unique();
 
 		if (!user) {
-			return { prompts: [], hasMore: false, nextCursor: null };
+			return { prompts: [], totalCount: 0, totalPages: 0, currentPage: 1 };
 		}
 
 		let baseQuery;
@@ -37,28 +37,24 @@ export const getUserPrompts = query({
 		const query = baseQuery.order('desc');
 
 		// Fetch all prompts and handle pagination in memory
-		// This is simpler and works with all index combinations
 		const allPrompts = await query.collect();
+		const totalCount = allPrompts.length;
+		const totalPages = Math.ceil(totalCount / limit);
 
-		// Find the starting index based on cursor
-		let startIndex = 0;
-		if (cursor && typeof cursor === 'string') {
-			const cursorId = cursor;
-			startIndex = allPrompts.findIndex((p) => p._id.toString() === cursorId) + 1;
-			if (startIndex === 0) startIndex = 0; // Cursor not found, start from beginning
-		}
+		// Validate page number
+		const validPage = Math.max(1, Math.min(page, totalPages || 1));
+
+		// Calculate offset
+		const offset = (validPage - 1) * limit;
 
 		// Get the page of results
-		const paginatedPrompts = allPrompts.slice(startIndex, startIndex + limit);
-		const hasMore = startIndex + limit < allPrompts.length;
-		const nextCursor = hasMore
-			? paginatedPrompts[paginatedPrompts.length - 1]?._id.toString()
-			: null;
+		const paginatedPrompts = allPrompts.slice(offset, offset + limit);
 
 		return {
 			prompts: paginatedPrompts,
-			hasMore,
-			nextCursor
+			totalCount,
+			totalPages,
+			currentPage: validPage
 		};
 	}
 });

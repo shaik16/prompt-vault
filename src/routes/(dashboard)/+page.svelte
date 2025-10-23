@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 	import PromptCard from '$lib/components/PromptCard.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
 
 	interface Prompt {
 		_id: string;
@@ -29,13 +30,12 @@
 
 	// Category state
 	let selectedCategory = $state('All');
+	let previousCategory = $state('All');
 
 	// Pagination state
+	let currentPage = $state(1);
 	let allPrompts: Prompt[] = $state([]);
-	let nextCursor: string | null = $state(null);
-	let hasMore = $state(false);
-	let isLoadingMore = $state(false);
-	let previousCategory = $state('All');
+	let totalPages = $state(0);
 
 	// Query to fetch user's prompts with category filter - only when user is signed in
 	const promptsQuery = $derived(
@@ -43,8 +43,8 @@
 			? useQuery(api.prompts.getUserPrompts, {
 					clerkUserId,
 					category: selectedCategory.toLocaleLowerCase(),
-					limit: 12,
-					...(nextCursor ? { cursor: nextCursor } : {})
+					page: currentPage,
+					limit: 8
 				})
 			: null
 	);
@@ -53,12 +53,10 @@
 	const isLoading = $derived(promptsQuery?.isLoading ?? false);
 	const shouldShowSkeletons = $derived(isLoading && allPrompts.length === 0);
 
-	// Reset pagination when category changes
+	// Reset to page 1 when category changes
 	$effect(() => {
 		if (selectedCategory !== previousCategory) {
-			allPrompts = [];
-			nextCursor = null;
-			hasMore = false;
+			currentPage = 1;
 			previousCategory = selectedCategory;
 		}
 	});
@@ -66,15 +64,8 @@
 	// Update allPrompts when query data changes
 	$effect(() => {
 		if (queryData?.prompts) {
-			if (nextCursor) {
-				// Append to existing prompts (pagination)
-				allPrompts = [...allPrompts, ...queryData.prompts];
-			} else {
-				// Replace with new prompts (initial load or category change)
-				allPrompts = queryData.prompts;
-			}
-			hasMore = queryData.hasMore ?? false;
-			isLoadingMore = false;
+			allPrompts = queryData.prompts;
+			totalPages = queryData.totalPages ?? 0;
 		}
 	});
 
@@ -224,22 +215,59 @@
 			{/each}
 		</div>
 
-		<!-- Load More button -->
-		{#if hasMore && !isLoading}
-			<div class="flex justify-center pt-6">
-				<button
-					onclick={() => {
-						isLoadingMore = true;
-						// Update nextCursor to trigger the query to fetch more prompts
-						if (queryData?.nextCursor) {
-							nextCursor = queryData.nextCursor;
-						}
-					}}
-					disabled={isLoadingMore}
-					class="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-				>
-					{isLoadingMore ? 'Loading...' : 'Load More'}
-				</button>
+		<!-- Pagination -->
+		{#if totalPages > 1}
+			<div class="flex justify-center pt-8">
+				<Pagination.Root count={totalPages * 8} perPage={8} page={currentPage}>
+					{#snippet children({
+						pages: pageList,
+						currentPage: page,
+						prevPage,
+						nextPage,
+						totalPages: pages_total
+					})}
+						<Pagination.Content>
+							<Pagination.Item>
+								<Pagination.PrevButton
+									disabled={page === 1}
+									onclick={() => {
+										prevPage();
+										currentPage = page - 1;
+									}}
+								/>
+							</Pagination.Item>
+							{#each pageList as p (p.key)}
+								{#if p.type === 'ellipsis'}
+									<Pagination.Item>
+										<Pagination.Ellipsis />
+									</Pagination.Item>
+								{:else}
+									<Pagination.Item>
+										<Pagination.Link
+											isActive={page === p.value}
+											onclick={() => {
+												if (p.value) {
+													currentPage = p.value;
+												}
+											}}
+										>
+											{p.value}
+										</Pagination.Link>
+									</Pagination.Item>
+								{/if}
+							{/each}
+							<Pagination.Item>
+								<Pagination.NextButton
+									disabled={page === pages_total}
+									onclick={() => {
+										nextPage();
+										currentPage = page + 1;
+									}}
+								/>
+							</Pagination.Item>
+						</Pagination.Content>
+					{/snippet}
+				</Pagination.Root>
 			</div>
 		{/if}
 	{/if}

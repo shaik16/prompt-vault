@@ -139,9 +139,7 @@
 
 			toast.success('Prompt updated successfully!');
 
-			setTimeout(() => {
-				goto('/');
-			}, 2000);
+			goto('/');
 		} catch (error) {
 			console.error('Error updating prompt:', error);
 			const message =

@@ -125,10 +125,7 @@
 				category: ''
 			};
 
-			// Redirect after 2 seconds
-			setTimeout(() => {
-				goto('/');
-			}, 2000);
+			goto('/');
 		} catch (error) {
 			console.error('Error saving prompt:', error);
 			const message =
